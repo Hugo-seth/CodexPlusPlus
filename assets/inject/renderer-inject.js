@@ -1349,9 +1349,46 @@
     removeDuplicateCodexPlusMenus(menu);
   }
 
+  const codexPlusReactInternals = (() => {
+    const FIBER_PREFIXES = ["__reactFiber", "__reactInternalInstance"];
+    const PROPS_PREFIXES = ["__reactProps"];
+
+    function findFirstKey(element, prefixes) {
+      if (!element || typeof element !== "object") return null;
+      const keys = Object.keys(element);
+      for (const key of keys) {
+        if (prefixes.some((prefix) => key.startsWith(prefix))) return key;
+      }
+      return null;
+    }
+
+    function findAllKeys(element, prefixes) {
+      if (!element || typeof element !== "object") return [];
+      return Object.keys(element).filter((key) =>
+        prefixes.some((prefix) => key.startsWith(prefix)),
+      );
+    }
+
+    return {
+      fiber(element) {
+        const key = findFirstKey(element, FIBER_PREFIXES);
+        return key ? element[key] : null;
+      },
+      props(element) {
+        const key = findFirstKey(element, PROPS_PREFIXES);
+        return key ? element[key] : null;
+      },
+      allPropsKeys(element) {
+        return findAllKeys(element, PROPS_PREFIXES);
+      },
+      allKeys(element) {
+        return findAllKeys(element, [...FIBER_PREFIXES, ...PROPS_PREFIXES]);
+      },
+    };
+  })();
+
   function reactFiberFrom(element) {
-    const fiberKey = Object.keys(element).find((key) => key.startsWith("__reactFiber"));
-    return fiberKey ? element[fiberKey] : null;
+    return codexPlusReactInternals.fiber(element);
   }
 
   function authContextValueFrom(element) {
@@ -1413,9 +1450,9 @@
       node.style.display = "";
     });
     labelUnlockedPluginEntry(pluginButton);
-    const reactPropsKey = Object.keys(pluginButton).find((key) => key.startsWith("__reactProps"));
-    if (reactPropsKey) {
-      pluginButton[reactPropsKey].disabled = false;
+    const reactProps = codexPlusReactInternals.props(pluginButton);
+    if (reactProps) {
+      reactProps.disabled = false;
     }
     if (pluginButton.dataset.codexPluginEnabled === "true") return;
     pluginButton.dataset.codexPluginEnabled = "true";
@@ -1438,15 +1475,13 @@
   }
 
   function patchReactDisabledProps(element) {
-    Object.keys(element)
-      .filter((key) => key.startsWith("__reactProps"))
-      .forEach((key) => {
-        const props = element[key];
-        if (!props || typeof props !== "object") return;
-        props.disabled = false;
-        props["aria-disabled"] = false;
-        props["data-disabled"] = undefined;
-      });
+    codexPlusReactInternals.allPropsKeys(element).forEach((key) => {
+      const props = element[key];
+      if (!props || typeof props !== "object") return;
+      props.disabled = false;
+      props["aria-disabled"] = false;
+      props["data-disabled"] = undefined;
+    });
   }
 
   function clearDisabledState(element) {
@@ -2673,7 +2708,7 @@
   }
 
   function reactFiberKeys(element) {
-    return Object.keys(element).filter((key) => key.startsWith("__reactFiber") || key.startsWith("__reactInternalInstance") || key.startsWith("__reactProps"));
+    return codexPlusReactInternals.allKeys(element);
   }
 
   function patchReactModelState() {
@@ -3952,8 +3987,7 @@
   }
 
   function reactArchivedThreadFromNode(node) {
-    const reactKey = Object.keys(node).find((key) => key.startsWith("__reactFiber$") || key.startsWith("__reactInternalInstance$"));
-    let fiber = reactKey ? node[reactKey] : null;
+    let fiber = codexPlusReactInternals.fiber(node);
     for (let depth = 0; fiber && depth < 20; depth += 1, fiber = fiber.return) {
       const props = fiber.memoizedProps || fiber.pendingProps || {};
       if (props.archivedThread?.id) return props.archivedThread;
@@ -4707,7 +4741,7 @@
   }
 
   function zedRemoteReactKeys(element) {
-    return Object.keys(element).filter((key) => key.startsWith("__reactFiber") || key.startsWith("__reactInternalInstance") || key.startsWith("__reactProps"));
+    return codexPlusReactInternals.allKeys(element);
   }
 
   function zedRemoteContextFromElement(element) {
