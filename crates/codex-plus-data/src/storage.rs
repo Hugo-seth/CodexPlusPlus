@@ -426,12 +426,11 @@ impl SQLiteStorageAdapter {
         }
         let mut file_errors = Vec::new();
         for file in file_backups {
-            if let Some(path) = file.get("path").and_then(Value::as_str) {
-                if let Err(err) = fs::remove_file(path) {
-                    if err.kind() != std::io::ErrorKind::NotFound {
-                        file_errors.push(format!("{path}: {err}"));
-                    }
-                }
+            if let Some(path) = file.get("path").and_then(Value::as_str)
+                && let Err(err) = fs::remove_file(path)
+                && err.kind() != std::io::ErrorKind::NotFound
+            {
+                file_errors.push(format!("{path}: {err}"));
             }
         }
         if !file_errors.is_empty() {
@@ -646,10 +645,10 @@ fn detect_file_restore_conflicts(tables: &Map<String, Value>) -> anyhow::Result<
         return Ok(());
     };
     for file in files {
-        if let Some(path) = file.get("path").and_then(Value::as_str) {
-            if Path::new(path).exists() {
-                anyhow::bail!("restore conflict: file already exists: {path}");
-            }
+        if let Some(path) = file.get("path").and_then(Value::as_str)
+            && Path::new(path).exists()
+        {
+            anyhow::bail!("restore conflict: file already exists: {path}");
         }
     }
     Ok(())
@@ -781,17 +780,15 @@ fn update_rollout_session_meta_cwd(
                 .strip_suffix('\n')
                 .map_or((line, ""), |body| (body, "\n"));
             let mut raw = line.to_string();
-            if let Ok(mut item) = serde_json::from_str::<Value>(body) {
-                if item.get("type") == Some(&json!("session_meta"))
-                    && item["payload"]["id"] == thread_id
-                    && item["payload"]["cwd"] != target_cwd
-                {
-                    if let Some(payload) = item.get_mut("payload").and_then(Value::as_object_mut) {
-                        payload.insert("cwd".to_string(), json!(target_cwd));
-                        raw = serde_json::to_string(&item)? + end;
-                        changed = true;
-                    }
-                }
+            if let Ok(mut item) = serde_json::from_str::<Value>(body)
+                && item.get("type") == Some(&json!("session_meta"))
+                && item["payload"]["id"] == thread_id
+                && item["payload"]["cwd"] != target_cwd
+                && let Some(payload) = item.get_mut("payload").and_then(Value::as_object_mut)
+            {
+                payload.insert("cwd".to_string(), json!(target_cwd));
+                raw = serde_json::to_string(&item)? + end;
+                changed = true;
             }
             output.push_str(&raw);
         }

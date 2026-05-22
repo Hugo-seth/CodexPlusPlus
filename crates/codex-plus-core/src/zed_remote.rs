@@ -280,16 +280,16 @@ fn percent_encode_segment(segment: &str) -> String {
 pub fn launch_zed_url(url: &str) -> Result<(), ZedRemoteError> {
     let app_path = find_zed_app_path();
     let cli_path = find_zed_cli_path();
-    if cfg!(target_os = "macos") {
-        if let Some(app_path) = app_path {
-            Command::new("open")
-                .arg("-a")
-                .arg(app_path)
-                .arg(url)
-                .spawn()
-                .map_err(ZedRemoteError::Launch)?;
-            return Ok(());
-        }
+    if cfg!(target_os = "macos")
+        && let Some(app_path) = app_path
+    {
+        Command::new("open")
+            .arg("-a")
+            .arg(app_path)
+            .arg(url)
+            .spawn()
+            .map_err(ZedRemoteError::Launch)?;
+        return Ok(());
     }
     if !cli_path.is_empty() {
         Command::new(cli_path)

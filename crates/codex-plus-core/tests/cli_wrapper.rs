@@ -51,8 +51,9 @@ fn resolves_user_runtime_before_packaged_resources_codex() {
     std::fs::write(&packaged, "").unwrap();
     std::fs::write(&user_runtime, "").unwrap();
 
-    let resolved = resolve_real_codex_from_candidates(Some(&app_dir), &[user_runtime.clone()])
-        .expect("user runtime codex should be preferred");
+    let resolved =
+        resolve_real_codex_from_candidates(Some(&app_dir), std::slice::from_ref(&user_runtime))
+            .expect("user runtime codex should be preferred");
 
     assert_eq!(resolved, user_runtime);
 }
@@ -75,6 +76,7 @@ fn resolves_packaged_resources_when_user_runtime_is_missing() {
     assert_eq!(resolved, packaged);
 }
 
+#[cfg(windows)]
 #[test]
 fn wrapper_dir_uses_roaming_codex_plus_plus() {
     assert_eq!(

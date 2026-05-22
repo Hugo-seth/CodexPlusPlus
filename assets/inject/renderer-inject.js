@@ -870,6 +870,10 @@
     try {
       codexPlusBackendStatus = await postJson("/backend/repair", {});
     } catch (error) {
+      sendCodexPlusDiagnostic("backend_repair_failed", {
+        errorName: error?.name || "",
+        errorMessage: error?.message || String(error),
+      });
       codexPlusBackendStatus = { status: "failed", message: "后端修复失败" };
     }
     renderBackendStatus();
@@ -2368,6 +2372,11 @@
           });
           return await response.json();
         } catch (error) {
+          sendCodexPlusDiagnostic("helper_fetch_failed", {
+            path,
+            errorName: error?.name || "",
+            errorMessage: error?.message || String(error),
+          });
           return { status: "failed", message: "后端已断开" };
         }
       }
@@ -2389,6 +2398,11 @@
         });
         return await response.json();
       } catch (error) {
+        sendCodexPlusDiagnostic("helper_fetch_failed", {
+          path,
+          errorName: error?.name || "",
+          errorMessage: error?.message || String(error),
+        });
         return { status: "failed", message: "后端已断开" };
       }
     }

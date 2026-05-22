@@ -1,8 +1,5 @@
 use anyhow::{Context, bail};
 use serde::Deserialize;
-use std::time::Duration;
-
-const CDP_HTTP_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct CdpTarget {
@@ -19,12 +16,7 @@ pub struct CdpTarget {
 
 pub async fn list_targets(debug_port: u16) -> anyhow::Result<Vec<CdpTarget>> {
     let url = format!("http://127.0.0.1:{debug_port}/json");
-    let client = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(CDP_HTTP_TIMEOUT)
-        .build()
-        .context("failed to build CDP HTTP client")?;
-    let response = client
+    let response = crate::http_client::shared_loopback_client()
         .get(url)
         .send()
         .await

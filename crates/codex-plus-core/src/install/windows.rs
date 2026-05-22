@@ -5,7 +5,9 @@ use super::{
     install_root_or_default, option_or_current_exe,
 };
 
+#[cfg(windows)]
 const UNINSTALL_SUBKEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\CodexPlusPlus";
+#[cfg(windows)]
 const LEGACY_UNINSTALL_SUBKEY: &str =
     r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Codex++";
 

@@ -129,7 +129,7 @@ pub fn default_install_root() -> Option<PathBuf> {
 
     #[cfg(target_os = "macos")]
     {
-        return Some(PathBuf::from("/Applications"));
+        Some(PathBuf::from("/Applications"))
     }
 
     #[cfg(not(any(windows, target_os = "macos")))]

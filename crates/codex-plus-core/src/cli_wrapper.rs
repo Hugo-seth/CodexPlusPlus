@@ -117,16 +117,16 @@ pub fn resolve_real_codex_from_candidates(
 
 pub fn default_user_runtime_candidates() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
-    if cfg!(windows) {
-        if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA").map(PathBuf::from) {
-            candidates.push(
-                local_app_data
-                    .join("OpenAI")
-                    .join("Codex")
-                    .join("bin")
-                    .join("codex.exe"),
-            );
-        }
+    if cfg!(windows)
+        && let Some(local_app_data) = std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
+    {
+        candidates.push(
+            local_app_data
+                .join("OpenAI")
+                .join("Codex")
+                .join("bin")
+                .join("codex.exe"),
+        );
     }
     candidates
 }
@@ -142,10 +142,10 @@ pub fn packaged_codex_candidates(app_dir: Option<&Path>) -> Vec<PathBuf> {
 }
 
 pub fn wrapper_dir() -> PathBuf {
-    if cfg!(windows) {
-        if let Some(roaming) = std::env::var_os("APPDATA").map(PathBuf::from) {
-            return wrapper_dir_from_roaming(&roaming);
-        }
+    if cfg!(windows)
+        && let Some(roaming) = std::env::var_os("APPDATA").map(PathBuf::from)
+    {
+        return wrapper_dir_from_roaming(&roaming);
     }
     crate::paths::default_app_state_dir().join("cli-wrapper")
 }

@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
 use std::time::Duration;
 
 pub const WATCHER_INTERVAL_SECONDS: f64 = 3.0;

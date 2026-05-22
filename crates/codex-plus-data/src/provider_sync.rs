@@ -117,7 +117,16 @@ pub fn run_provider_sync(codex_home: Option<&Path>) -> ProviderSyncResult {
         let sqlite_rows_updated = match apply_result {
             Ok(count) => count,
             Err(err) => {
-                let _ = restore_session_changes(&rewrite_changes);
+                if let Err(restore_err) = restore_session_changes(&rewrite_changes) {
+                    let _ = codex_plus_core::diagnostic_log::append_diagnostic_log(
+                        "provider_sync.restore_failed",
+                        serde_json::json!({
+                            "primary_error": err.to_string(),
+                            "restore_error": restore_err.to_string(),
+                            "change_count": rewrite_changes.len(),
+                        }),
+                    );
+                }
                 return Err(err);
             }
         };
@@ -304,8 +313,8 @@ fn to_desktop_workspace_path(value: &str) -> Option<String> {
     if lower.starts_with(r"\\?\unc\") {
         return Some(format!(r"\\{}", stripped[8..].replace('/', r"\")));
     }
-    if stripped.starts_with(r"\\?\") {
-        return Some(stripped[4..].replace('\\', "/"));
+    if let Some(stripped) = stripped.strip_prefix(r"\\?\") {
+        return Some(stripped.replace('\\', "/"));
     }
     Some(stripped.to_string())
 }

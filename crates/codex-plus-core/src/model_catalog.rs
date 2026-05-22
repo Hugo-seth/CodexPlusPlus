@@ -36,23 +36,7 @@ struct CodexConfig {
 pub async fn read_codex_model_catalog() -> Value {
     let home = codex_home_dir();
     let env = std::env::vars().collect::<HashMap<_, _>>();
-    let client = match crate::http_client::proxied_client("CodexPlusPlus/1.0") {
-        Ok(client) => client,
-        Err(error) => {
-            return json!({
-                "status": "failed",
-                "path": home.join("config.toml").to_string_lossy(),
-                "message": error.to_string(),
-                "model": "",
-                "model_provider": "",
-                "provider_name": "",
-                "default_model": "",
-                "models": [],
-                "sources": [],
-                "responses_api": responses_api_status("unknown", "", "")
-            });
-        }
-    };
+    let client = crate::http_client::shared_client().clone();
     read_codex_model_catalog_from_home(&home, &env, client).await
 }
 
@@ -94,15 +78,13 @@ pub async fn read_codex_model_catalog_from_home(
     }
 
     let mut sources = model_sources_from_environment(env, &auth_api_key);
-    if error.is_none() {
-        if let Some(source) = model_source_from_config(&config, &effective, env, &auth_api_key) {
-            if sources
-                .iter()
-                .all(|existing| trim_url(&existing.base_url) != trim_url(&source.base_url))
-            {
-                sources.push(source);
-            }
-        }
+    if error.is_none()
+        && let Some(source) = model_source_from_config(&config, &effective, env, &auth_api_key)
+        && sources
+            .iter()
+            .all(|existing| trim_url(&existing.base_url) != trim_url(&source.base_url))
+    {
+        sources.push(source);
     }
 
     let mut source_statuses = Vec::new();
@@ -178,10 +160,10 @@ fn load_codex_config(path: &Path) -> (CodexConfig, HashMap<String, String>, Opti
     };
     let config = parse_codex_config(&contents);
     let mut effective = config.root.clone();
-    if let Some(profile) = config.root.get("profile") {
-        if let Some(profile_values) = config.profiles.get(profile) {
-            effective.extend(profile_values.clone());
-        }
+    if let Some(profile) = config.root.get("profile")
+        && let Some(profile_values) = config.profiles.get(profile)
+    {
+        effective.extend(profile_values.clone());
     }
     (config, effective, None)
 }
@@ -283,10 +265,10 @@ fn provider_config_for_model_provider(
             config.model_providers.get(model_provider).cloned(),
         );
     }
-    if config.model_providers.len() == 1 {
-        if let Some((name, provider)) = config.model_providers.iter().next() {
-            return (name.clone(), Some(provider.clone()));
-        }
+    if config.model_providers.len() == 1
+        && let Some((name, provider)) = config.model_providers.iter().next()
+    {
+        return (name.clone(), Some(provider.clone()));
     }
     (model_provider.to_string(), None)
 }

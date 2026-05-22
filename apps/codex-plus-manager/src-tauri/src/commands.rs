@@ -746,10 +746,10 @@ fn default_user_script_manager() -> UserScriptManager {
 }
 
 fn user_scripts_config_dir() -> PathBuf {
-    if cfg!(windows) {
-        if let Some(roaming) = std::env::var_os("APPDATA") {
-            return PathBuf::from(roaming).join("Codex++");
-        }
+    if cfg!(windows)
+        && let Some(roaming) = std::env::var_os("APPDATA")
+    {
+        return PathBuf::from(roaming).join("Codex++");
     }
     std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)

@@ -245,7 +245,15 @@ where
             }
             let message = error.to_string();
             let failure = launch_status("failed", &message, debug_port, helper_port, &app_dir);
-            let _ = status_store.save_latest(&failure);
+            if let Err(save_err) = status_store.save_latest(&failure) {
+                let _ = crate::diagnostic_log::append_diagnostic_log(
+                    "launcher.status_save_failed",
+                    serde_json::json!({
+                        "launch_error": message,
+                        "save_error": save_err.to_string(),
+                    }),
+                );
+            }
             hooks.write_status("failed").await;
             Err(error)
         }
@@ -347,33 +355,32 @@ impl LaunchHooks for DefaultLaunchHooks {
     }
 
     async fn launch_codex(&self, app_dir: &Path, debug_port: u16) -> anyhow::Result<CodexLaunch> {
-        if cfg!(windows) {
-            if let Some(activation) = build_packaged_activation(app_dir, debug_port) {
-                let CodexLaunch::PackagedActivation {
+        if cfg!(windows)
+            && let Some(activation) = build_packaged_activation(app_dir, debug_port)
+        {
+            let CodexLaunch::PackagedActivation {
+                app_user_model_id,
+                arguments,
+                ..
+            } = &activation
+            else {
+                unreachable!();
+            };
+            let env = codex_process_environment();
+            let process_id =
+                activate_packaged_app_with_environment(app_user_model_id, arguments, &env).await?;
+            return Ok(match activation {
+                CodexLaunch::PackagedActivation {
                     app_user_model_id,
                     arguments,
                     ..
-                } = &activation
-                else {
-                    unreachable!();
-                };
-                let env = codex_process_environment();
-                let process_id =
-                    activate_packaged_app_with_environment(app_user_model_id, arguments, &env)
-                        .await?;
-                return Ok(match activation {
-                    CodexLaunch::PackagedActivation {
-                        app_user_model_id,
-                        arguments,
-                        ..
-                    } => CodexLaunch::PackagedActivation {
-                        app_user_model_id,
-                        arguments,
-                        process_id: Some(process_id),
-                    },
-                    CodexLaunch::Process { .. } => unreachable!(),
-                });
-            }
+                } => CodexLaunch::PackagedActivation {
+                    app_user_model_id,
+                    arguments,
+                    process_id: Some(process_id),
+                },
+                CodexLaunch::Process { .. } => unreachable!(),
+            });
         }
 
         if app_dir.extension().and_then(|value| value.to_str()) == Some("app") {
@@ -605,9 +612,7 @@ async fn handle_helper_connection(
         }),
     );
     let response = if method == "OPTIONS" {
-        format!(
-            "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-        )
+        "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_string()
     } else {
         format!(
             "HTTP/1.1 {status}\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",

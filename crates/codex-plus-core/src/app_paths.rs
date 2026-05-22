@@ -110,10 +110,9 @@ pub fn resolve_codex_app_dir_with_saved(
     if let Some(saved) = saved_app_path
         .map(str::trim)
         .filter(|saved| !saved.is_empty())
+        && let Some(path) = normalize_codex_app_path(Path::new(saved))
     {
-        if let Some(path) = normalize_codex_app_path(Path::new(saved)) {
-            return Some(path);
-        }
+        return Some(path);
     }
     resolve_codex_app_dir(None)
 }

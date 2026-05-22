@@ -279,7 +279,7 @@ async fn data_routes_forward_payloads_to_data_service() {
 async fn bridge_context_core_with_data_uses_injected_data_service() {
     let ctx = BridgeContext::core_with_data(
         Arc::new(CoreRuntimeService::new(9229, StatusStore::default())),
-        Arc::new(FakeData::default()),
+        Arc::new(FakeData),
     );
 
     let result = handle_bridge_request(
@@ -371,7 +371,7 @@ async fn core_runtime_reload_evaluates_enabled_user_bundle_and_status_is_ok() {
             })
         })
         .with_websocket_url("ws://page");
-    let ctx = BridgeContext::core_with_data(Arc::new(runtime), Arc::new(FakeData::default()));
+    let ctx = BridgeContext::core_with_data(Arc::new(runtime), Arc::new(FakeData));
 
     let status = handle_bridge_request(ctx.clone(), "/backend/status", json!({})).await;
     let repaired = handle_bridge_request(ctx.clone(), "/backend/repair", json!({})).await;
@@ -404,7 +404,7 @@ async fn core_runtime_open_devtools_uses_inspector_url_opener() {
             })
         })
         .with_devtools_target_id("page-1");
-    let ctx = BridgeContext::core_with_data(Arc::new(runtime), Arc::new(FakeData::default()));
+    let ctx = BridgeContext::core_with_data(Arc::new(runtime), Arc::new(FakeData));
 
     let result = handle_bridge_request(ctx, "/devtools/open", json!({})).await;
 
@@ -463,7 +463,7 @@ fn user_script_manager_tolerates_bad_config_fields_and_updates_atomically() {
         config_path.clone(),
     );
 
-    assert_eq!(manager.load_config().enabled, true);
+    assert!(manager.load_config().enabled);
     assert_eq!(manager.load_config().scripts.get("user:a.js"), Some(&false));
     assert!(!manager.load_config().scripts.contains_key("user:b.js"));
 
@@ -513,7 +513,7 @@ fn test_context() -> BridgeContext {
     BridgeContext::new(
         Arc::new(FakeSettings::default()),
         Arc::new(FakeRuntime::default()),
-        Arc::new(FakeData::default()),
+        Arc::new(FakeData),
     )
 }
 

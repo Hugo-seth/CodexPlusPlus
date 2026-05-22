@@ -183,6 +183,7 @@ fn launcher_builds_debug_arguments_and_commands() {
     assert_eq!(command[2], "--remote-allow-origins=http://127.0.0.1:9229");
 }
 
+#[cfg(windows)]
 #[test]
 fn launcher_constructs_windows_packaged_activation_without_real_app() {
     let app_dir = PathBuf::from(
