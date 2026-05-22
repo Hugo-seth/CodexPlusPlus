@@ -1,6 +1,12 @@
 pub mod commands;
 pub mod install;
 
+use tauri::{
+    Manager, WindowEvent,
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+};
+
 pub fn run() {
     let Some(_guard) = acquire_single_instance_guard() else {
         return;
@@ -14,10 +20,21 @@ pub fn run() {
             } else {
                 "index.html"
             };
-            tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App(url.into()))
-                .title("Codex++ 管理工具")
-                .inner_size(960.0, 720.0)
-                .build()?;
+            let window =
+                tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App(url.into()))
+                    .title("Codex++ 管理工具")
+                    .inner_size(960.0, 720.0)
+                    .build()?;
+
+            let win_for_close = window.clone();
+            window.on_window_event(move |event| {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = win_for_close.hide();
+                }
+            });
+
+            setup_tray(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -52,6 +69,47 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Codex++ manager");
+}
+
+fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
+    let show_item = MenuItem::with_id(app, "tray:show", "显示主窗口", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "tray:quit", "退出管理工具", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+
+    let mut builder = TrayIconBuilder::with_id("codex-plus-manager")
+        .tooltip("Codex++ 管理工具")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "tray:show" => reveal_main_window(app),
+            "tray:quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                reveal_main_window(tray.app_handle());
+            }
+        });
+
+    if let Some(icon) = app.default_window_icon().cloned() {
+        builder = builder.icon(icon);
+    }
+
+    builder.build(app)?;
+    Ok(())
+}
+
+fn reveal_main_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
 }
 
 fn acquire_single_instance_guard() -> Option<std::net::TcpListener> {
