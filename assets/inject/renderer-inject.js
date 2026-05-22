@@ -75,6 +75,32 @@
   window.__codexThreadScrollRestoreRevision = (window.__codexThreadScrollRestoreRevision || 0) + 1;
   window.__codexThreadScrollSyncRevision = (window.__codexThreadScrollSyncRevision || 0) + 1;
   window.__codexConversationTimelineNodeCounter = window.__codexConversationTimelineNodeCounter || 0;
+  if (window.__codexPlusBackendHeartbeat) {
+    clearInterval(window.__codexPlusBackendHeartbeat);
+    window.__codexPlusBackendHeartbeat = null;
+  }
+  if (window.__codexForcePluginInstallRefreshTimer) {
+    clearInterval(window.__codexForcePluginInstallRefreshTimer);
+    window.__codexForcePluginInstallRefreshTimer = null;
+  }
+  if (window.__codexSessionDeleteScanTimer) {
+    clearTimeout(window.__codexSessionDeleteScanTimer);
+    window.__codexSessionDeleteScanTimer = null;
+  }
+  if (window.__codexZedRemoteMenuRefreshTimer) {
+    clearTimeout(window.__codexZedRemoteMenuRefreshTimer);
+    window.__codexZedRemoteMenuRefreshTimer = null;
+  }
+  try {
+    window.__codexSessionDeleteObserver?.disconnect();
+  } catch (_) {}
+  window.__codexSessionDeleteObserver = null;
+  if (typeof window.__codexPlusResizeHandler === "function") {
+    try {
+      window.removeEventListener("resize", window.__codexPlusResizeHandler);
+    } catch (_) {}
+    window.__codexPlusResizeHandler = null;
+  }
   ["__codexPlusHtmlCenteredThreadWidth", "__codexPlusViewportCenteredThreadWidth", "__codexPlusBoundedThreadCenter"].forEach((key) => {
     try {
       window[key]?.cleanup?.();
@@ -94,6 +120,25 @@
     pluginNavButton: 'nav[role="navigation"] button.h-token-nav-row.w-full',
     pluginSvgPath: 'svg path[d^="M7.94562 14.0277"]',
   };
+
+  const codexPlusLabels = {
+    archiveTitle: ["已归档对话", "Archived conversations"],
+    forcedInstall: { zh: "强制安装", en: "Force install" },
+    pluginEntry: { zh: "插件", en: "Plugins" },
+    pluginEntryUnlocked: { zh: "插件 - 已解锁", en: "Plugins - Unlocked" },
+  };
+
+  function codexPlusMatchesLabel(text, candidates) {
+    if (typeof text !== "string") return false;
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+    if (Array.isArray(candidates)) return candidates.some((value) => value === trimmed);
+    return Object.values(candidates).some((value) => value === trimmed);
+  }
+
+  function codexPlusDetectLocale(text) {
+    return typeof text === "string" && /^[A-Za-z]/.test(text.trim()) ? "en" : "zh";
+  }
 
   function installStyle() {
     const existingStyle = document.getElementById(styleId);
@@ -1471,7 +1516,7 @@
   }
 
   function isInstallButtonLabel(text) {
-    return /^安装\s*/.test(text) || /^Install\s*/i.test(text) || text === "强制安装";
+    return /^安装\s*/.test(text) || /^Install\s*/i.test(text) || codexPlusMatchesLabel(text, codexPlusLabels.forcedInstall);
   }
 
   function patchReactDisabledProps(element) {
@@ -1535,7 +1580,8 @@
       if (isInstallButtonLabel((node.nodeValue || "").trim())) textNode = node;
     }
     if (textNode) {
-      textNode.nodeValue = "强制安装";
+      const locale = codexPlusDetectLocale(textNode.nodeValue);
+      textNode.nodeValue = codexPlusLabels.forcedInstall[locale] || codexPlusLabels.forcedInstall.zh;
     }
   }
 
@@ -1544,7 +1590,7 @@
     let textNode = null;
     while (!textNode && walker.nextNode()) {
       const node = walker.currentNode;
-      if ((node.nodeValue || "").trim() === "强制安装") textNode = node;
+      if (codexPlusMatchesLabel((node.nodeValue || "").trim(), codexPlusLabels.forcedInstall)) textNode = node;
     }
     if (textNode) {
       textNode.nodeValue = "安装";
@@ -1609,7 +1655,7 @@
     if (document.querySelector('[data-codex-archive-page-row="true"], [data-codex-archive-delete-all]')) return true;
     const archiveNav = document.querySelector(selectors.archiveNav);
     if (archiveNav?.className?.includes?.("bg-token-list-hover-background")) return true;
-    return !!Array.from(document.querySelectorAll("h1, h2, h3")).find((element) => (element.textContent || "").trim() === "已归档对话");
+    return !!Array.from(document.querySelectorAll("h1, h2, h3")).find((element) => codexPlusMatchesLabel(element.textContent || "", codexPlusLabels.archiveTitle));
   }
 
   function archiveRowFromUnarchiveButton(button) {
@@ -4037,7 +4083,7 @@
   }
 
   function isArchiveTitleText(value) {
-    return value === "已归档对话" || value === "Archived conversations";
+    return codexPlusMatchesLabel(value, codexPlusLabels.archiveTitle);
   }
 
   function archiveTitleContainer() {

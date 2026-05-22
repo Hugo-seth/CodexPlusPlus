@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use anyhow::Context;
 use serde::Serialize;
@@ -45,8 +45,14 @@ impl UserScriptManager {
     }
 
     pub fn load_config(&self) -> UserScriptConfig {
-        let _guard = self.config_lock.lock().unwrap();
+        let _guard = self.acquire_lock();
         self.load_config_unlocked()
+    }
+
+    fn acquire_lock(&self) -> MutexGuard<'_, ()> {
+        self.config_lock
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     fn load_config_unlocked(&self) -> UserScriptConfig {
@@ -60,7 +66,7 @@ impl UserScriptManager {
     }
 
     pub fn save_config(&self, config: &UserScriptConfig) -> anyhow::Result<()> {
-        let _guard = self.config_lock.lock().unwrap();
+        let _guard = self.acquire_lock();
         self.save_config_unlocked(config)
     }
 
@@ -80,7 +86,7 @@ impl UserScriptManager {
     }
 
     pub fn set_global_enabled(&self, enabled: bool) -> anyhow::Result<UserScriptConfig> {
-        let _guard = self.config_lock.lock().unwrap();
+        let _guard = self.acquire_lock();
         let mut config = self.load_config_unlocked();
         config.enabled = enabled;
         self.save_config_unlocked(&config)?;
@@ -88,7 +94,7 @@ impl UserScriptManager {
     }
 
     pub fn set_script_enabled(&self, key: &str, enabled: bool) -> anyhow::Result<UserScriptConfig> {
-        let _guard = self.config_lock.lock().unwrap();
+        let _guard = self.acquire_lock();
         let mut config = self.load_config_unlocked();
         config.scripts.insert(key.to_string(), enabled);
         self.save_config_unlocked(&config)?;

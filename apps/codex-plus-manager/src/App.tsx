@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { ask, open } from "@tauri-apps/plugin-dialog";
 import {
   Activity,
   Bell,
@@ -360,6 +360,16 @@ export function App() {
   };
 
   const uninstallEntrypoints = async () => {
+    const message = removeOwnedData
+      ? "将卸载 Codex++ 入口，并删除 Codex++ 托管的数据（设置 / 历史会话同步状态）。\n\n此操作不可撤销，确认继续？"
+      : "将卸载 Codex++ 入口。设置和数据保留。\n\n确认继续？";
+    const confirmed = await ask(message, {
+      title: "卸载入口",
+      kind: "warning",
+      okLabel: "卸载",
+      cancelLabel: "取消",
+    });
+    if (!confirmed) return;
     const result = await run(() =>
       call<InstallResult>("uninstall_entrypoints", {
         options: { removeOwnedData },
@@ -380,6 +390,18 @@ export function App() {
   };
 
   const watcherAction = async (command: string) => {
+    if (command === "uninstall_watcher") {
+      const confirmed = await ask(
+        "将卸载 Codex++ 后台守护 (Watcher)。卸载后 Codex 退出时不会自动清理残留进程。\n\n确认继续？",
+        {
+          title: "卸载 Watcher",
+          kind: "warning",
+          okLabel: "卸载",
+          cancelLabel: "取消",
+        },
+      );
+      if (!confirmed) return;
+    }
     const result = await run(() => call<WatcherResult>(command));
     if (result) {
       setWatcher(result);
@@ -425,6 +447,16 @@ export function App() {
   };
 
   const resetSettings = async () => {
+    const confirmed = await ask(
+      "将清空全部 Codex++ 设置（中转配置 / 启动模式 / 包装器等），恢复为默认值。\n\n此操作不可撤销，确认继续？",
+      {
+        title: "重置设置",
+        kind: "warning",
+        okLabel: "重置",
+        cancelLabel: "取消",
+      },
+    );
+    if (!confirmed) return;
     const result = await run(() => call<SettingsResult>("reset_settings"));
     if (result) {
       setSettings(result);
