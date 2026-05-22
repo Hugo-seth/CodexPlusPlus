@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
+#[cfg(windows)]
+use codex_plus_core::cli_wrapper::wrapper_dir_from_roaming;
 use codex_plus_core::cli_wrapper::{
     build_wrapper_source, parse_wrapper_source_settings, resolve_real_codex_from_candidates,
-    should_refresh_cli_wrapper, wrapper_dir_from_roaming, wrapper_settings_for_refresh,
+    should_refresh_cli_wrapper, wrapper_settings_for_refresh,
 };
 use codex_plus_core::settings::BackendSettings;
 

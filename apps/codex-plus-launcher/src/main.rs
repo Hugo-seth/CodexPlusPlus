@@ -49,26 +49,47 @@ async fn main() -> Result<()> {
 }
 
 fn acquire_single_instance_guard() -> anyhow::Result<Option<std::net::TcpListener>> {
-    match codex_plus_core::ports::acquire_loopback_port_guard(
-        codex_plus_core::ports::LAUNCHER_GUARD_PORT,
-    ) {
-        Ok(listener) => Ok(Some(listener)),
+    let port = codex_plus_core::ports::LAUNCHER_GUARD_PORT;
+    match codex_plus_core::ports::acquire_loopback_port_guard(port) {
+        Ok(listener) => {
+            let _ = codex_plus_core::launcher_lock::write_lock();
+            Ok(Some(listener))
+        }
         Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
             let _ = codex_plus_core::diagnostic_log::append_diagnostic_log(
                 "launcher.already_running",
-                json!({
-                    "guard_port": codex_plus_core::ports::LAUNCHER_GUARD_PORT
-                }),
+                json!({ "guard_port": port }),
             );
-            Ok(None)
+            if !codex_plus_core::launcher_lock::try_takeover_guard_port() {
+                let _ = codex_plus_core::diagnostic_log::append_diagnostic_log(
+                    "launcher.takeover_skipped",
+                    json!({ "guard_port": port }),
+                );
+                return Ok(None);
+            }
+            let _ = codex_plus_core::diagnostic_log::append_diagnostic_log(
+                "launcher.takeover_succeeded",
+                json!({ "guard_port": port }),
+            );
+            match codex_plus_core::ports::acquire_loopback_port_guard(port) {
+                Ok(listener) => {
+                    let _ = codex_plus_core::launcher_lock::write_lock();
+                    Ok(Some(listener))
+                }
+                Err(retry_error) => {
+                    let _ = codex_plus_core::diagnostic_log::append_diagnostic_log(
+                        "launcher.takeover_retry_failed",
+                        json!({
+                            "guard_port": port,
+                            "error": retry_error.to_string(),
+                        }),
+                    );
+                    Ok(None)
+                }
+            }
         }
         Err(error) => Err(error)
-            .with_context(|| {
-                format!(
-                    "failed to acquire launcher guard port {}",
-                    codex_plus_core::ports::LAUNCHER_GUARD_PORT
-                )
-            })
+            .with_context(|| format!("failed to acquire launcher guard port {port}"))
             .map(Some),
     }
 }

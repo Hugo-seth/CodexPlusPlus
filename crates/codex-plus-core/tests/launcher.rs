@@ -2,16 +2,20 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+#[cfg(windows)]
+use codex_plus_core::app_paths::packaged_app_user_model_id;
 use codex_plus_core::app_paths::{
     build_codex_executable, codex_app_version, find_latest_codex_app_dir,
     find_latest_codex_app_dir_from_roots, find_macos_codex_app, normalize_codex_app_path,
-    packaged_app_user_model_id, resolve_codex_app_dir_with_saved, user_data_candidates_from,
+    resolve_codex_app_dir_with_saved, user_data_candidates_from,
 };
+#[cfg(windows)]
+use codex_plus_core::launcher::build_packaged_activation;
 use codex_plus_core::launcher::{
     CodexLaunch, DefaultLaunchHooks, LaunchHooks, LaunchOptions, MacosCleanupPolicy,
     build_codex_arguments, build_codex_command, build_macos_cleanup_command,
-    build_macos_open_command, build_packaged_activation, codex_process_environment_from,
-    launch_and_inject_with_hooks, with_temporary_proxy_environment,
+    build_macos_open_command, codex_process_environment_from, launch_and_inject_with_hooks,
+    with_temporary_proxy_environment,
 };
 #[cfg(windows)]
 use codex_plus_core::launcher::{WindowsProcessControlStrategy, windows_process_control_strategy};
